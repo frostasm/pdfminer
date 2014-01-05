@@ -32,7 +32,8 @@ class LAParams(object):
                  word_margin=0.1,
                  boxes_flow=0.5,
                  detect_vertical=False,
-                 all_texts=False):
+                 all_texts=False,
+                 need_group_textboxes = False):
         self.line_overlap = line_overlap
         self.char_margin = char_margin
         self.line_margin = line_margin
@@ -40,6 +41,7 @@ class LAParams(object):
         self.boxes_flow = boxes_flow
         self.detect_vertical = detect_vertical
         self.all_texts = all_texts
+        self.need_group_textboxes = need_group_textboxes
         return
 
     def __repr__(self):
@@ -209,6 +211,10 @@ class LTChar(LTComponent, LTText):
         self.matrix = matrix
         self.fontname = font.fontname
         self.adv = textwidth * fontsize * scaling
+        m0 = abs(matrix[0])
+        m1 = abs(matrix[1])
+        self.direction = 0 if ( m0 > .001 and m1 < .001) else \
+                         1 if (m0 < .001 and m1 > .001) else 2
         # compute the boundary rectangle.
         if font.is_vertical():
             # vertical
@@ -255,8 +261,13 @@ class LTChar(LTComponent, LTText):
         return self._text
 
     def is_compatible(self, obj):
-        """Returns True if two characters can coexist in the same line."""
-        return True
+        """
+        Returns True if two characters can coexist in the same line.
+        Return True if two characters has same direction horizontal,vertical or any else
+
+        @type obj: LTChar
+        """
+        return self.direction == obj.direction
 
 
 ##  LTContainer
@@ -653,7 +664,7 @@ class LTLayoutContainer(LTContainer):
         for obj in empties:
             obj.analyze(laparams)
         textboxes = list(self.group_textlines(laparams, textlines))
-        if textboxes:
+        if textboxes and laparams.need_group_textboxes:
             self.groups = self.group_textboxes(laparams, textboxes)
             assigner = IndexAssigner()
             for group in self.groups:
